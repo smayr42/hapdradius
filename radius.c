@@ -101,52 +101,52 @@ static void
 sqlite_logger_cb(void *pArg, int iErrCode, const char *zMsg)
 {
 	UNUSED(pArg);
-    printf("SQLITE: (%d) %s\n", iErrCode, zMsg);
+	printf("SQLITE: (%d) %s\n", iErrCode, zMsg);
 }
 
 static void*
 init_tls()
 {
-    struct tls_config tconf;
-    struct tls_connection_params tparams;
+	struct tls_config tconf;
+	struct tls_connection_params tparams;
 	void *tls_ctx;
 
-    os_memset(&tconf, 0, sizeof(tconf));
-    tls_ctx = tls_init(&tconf);
-    if (tls_ctx == NULL)
-        return NULL;
+	os_memset(&tconf, 0, sizeof(tconf));
+	tls_ctx = tls_init(&tconf);
+	if (tls_ctx == NULL)
+		return NULL;
 
-    os_memset(&tparams, 0, sizeof(tparams));
-    tparams.ca_cert = CA_CERT;
-    tparams.client_cert = SERVER_CERT;
-    tparams.private_key = SERVER_KEY;
+	os_memset(&tparams, 0, sizeof(tparams));
+	tparams.ca_cert = CA_CERT;
+	tparams.client_cert = SERVER_CERT;
+	tparams.private_key = SERVER_KEY;
 
-    if (tls_global_set_params(tls_ctx, &tparams)) {
-        printf("Failed to set TLS parameters\n");
-        return NULL;
-    }
+	if (tls_global_set_params(tls_ctx, &tparams)) {
+		printf("Failed to set TLS parameters\n");
+		return NULL;
+	}
 
-    if (tls_global_set_verify(tls_ctx, 0)) {
-        printf("Failed to verify tls context\n");
-        return NULL;
-    }
+	if (tls_global_set_verify(tls_ctx, 0)) {
+		printf("Failed to verify tls context\n");
+		return NULL;
+	}
 
-    return tls_ctx;
+	return tls_ctx;
 }
 
 static int
 register_methods(void) {
 	int ret = 0;
 
-    ret = eap_server_identity_register();
+	ret = eap_server_identity_register();
 
-    if (ret == 0)
-        ret = eap_server_mschapv2_register();
+	if (ret == 0)
+		ret = eap_server_mschapv2_register();
 
-    if (ret == 0)
-        ret = eap_server_peap_register();
+	if (ret == 0)
+		ret = eap_server_peap_register();
 
-    return ret;
+	return ret;
 
 }
 
@@ -271,7 +271,7 @@ bind_radius_int32_attr(sqlite3_stmt *stmt, const char *name, struct radius_msg *
 	u32 value;
 	if (radius_msg_get_attr_int32(msg, attr, &value) != 0)
 		sqlite3_bind_null(stmt, index);
-    else
+	else
 		sqlite3_bind_int(stmt, index, value);
 }
 
@@ -301,8 +301,8 @@ acct_update(void *c, struct radius_msg *msg)
 	u32 type;
 	if (radius_msg_get_attr_int32(msg, RADIUS_ATTR_ACCT_STATUS_TYPE, &type) != 0 ||
 			(type != RADIUS_ACCT_STATUS_TYPE_START &&
-			 type != RADIUS_ACCT_STATUS_TYPE_STOP &&
-			 type != RADIUS_ACCT_STATUS_TYPE_INTERIM_UPDATE)) {
+					type != RADIUS_ACCT_STATUS_TYPE_STOP &&
+					type != RADIUS_ACCT_STATUS_TYPE_INTERIM_UPDATE)) {
 		/* only log accounting start, stop and update messages */
 		return;
 	}
