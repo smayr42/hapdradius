@@ -248,7 +248,6 @@ get_eap_user(void *c, const u8 *identity, size_t identity_len, int phase2, struc
 			user->methods[0].vendor = EAP_VENDOR_IETF;
 			user->methods[0].method = EAP_TYPE_MSCHAPV2;
 			user->accept_attr = &interim_update_attr;
-			printf("username '%.*s' password '%.*s'\n", (int)identity_len, identity, password_len, password);
 			res = 0;
 		}
 	}
