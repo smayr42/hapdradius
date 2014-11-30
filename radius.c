@@ -16,7 +16,7 @@
 #include "ap/ap_config.h"
 #include <sqlite3.h>
 
-#define DEBUG_LEVEL /*MSG_INFO*/MSG_MSGDUMP
+#define DEBUG_LEVEL MSG_INFO //MSG_MSGDUMP
 #define CA_CERT "./ca.crt"
 #define SERVER_CERT "./server.crt"
 #define SERVER_KEY "./server.key"
