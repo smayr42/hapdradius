@@ -36,3 +36,5 @@ include_directories(. utils)
 add_executable(HAPDRadius ${SOURCE_FILES})
 
 target_link_libraries(HAPDRadius -lssl -lcrypto -lsqlite3)
+
+install(TARGETS HAPDRadius RUNTIME DESTINATION bin)

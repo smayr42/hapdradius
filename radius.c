@@ -33,6 +33,8 @@
 
 CREATE TABLE users
 (
+    firstname TEXT NOT NULL,
+    lastname TEXT NOT NULL,
     username TEXT PRIMARY KEY NOT NULL,
     password TEXT NOT NULL,
     expiration TEXT DEFAULT NULL
@@ -55,11 +57,11 @@ CREATE TABLE accounting
 TEST DATA
 
 INSERT INTO users
-    (username, password, expiration)
+    (firstname, lastname, username, password, expiration)
 VALUES
-    ('user1', 'pass1', date('now')),
-    ('user2', 'pass2', NULL),
-    ('user3', 'pass3', date('now','+9 months'));
+    ('first1', 'last1', 'user1', 'pass1', date('now')),
+    ('first2', 'last2', 'user2', 'pass2', NULL),
+    ('first3', 'last3', 'user3', 'pass3', date('now','+9 months'));
 
  */
 
