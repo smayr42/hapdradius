@@ -17,15 +17,15 @@
 #include <sqlite3.h>
 
 #define DEBUG_LEVEL MSG_INFO //MSG_MSGDUMP
-#define CA_CERT "./ca.crt"
-#define SERVER_CERT "./server.crt"
-#define SERVER_KEY "./server.key"
+#define CA_CERT "/mnt/ca.crt"
+#define SERVER_CERT "/mnt/server.crt"
+#define SERVER_KEY "/mnt/server.key"
+#define CLIENT_FILE "/mnt/radius.conf"
+#define DB_FILE "/mnt/user.db"
 #define SERVER_ID "radius"
-#define CLIENT_FILE "./hostapd.radius_clients"
 #define AUTH_PORT 1812
 #define ACCT_PORT 1813
 #define ACCT_UPDATE_INTERVAL 300
-#define DB_FILE "./rad.db"
 
 #define UNUSED(x) (void)(x)
 
