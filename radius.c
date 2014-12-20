@@ -61,7 +61,7 @@ CREATE TABLE requests
     status INTEGER, --Radius Message Code
     username TEXT, --User-Name (string)
     ap_mac TEXT, --Called-Station-Id (string)
-    client_mac TEXT, --Calling-Station-Id (string)
+    client_mac TEXT --Calling-Station-Id (string)
 );
 
 TEST DATA
