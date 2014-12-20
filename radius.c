@@ -250,6 +250,8 @@ get_eap_user(void *c, const u8 *identity, size_t identity_len, int phase2,
 		return -1;
 	}
 
+	radius_msg_dump(request);
+
 	int res = -1;
 	struct sqlite_ctx *ctx = c;
 	sqlite3_reset(ctx->select_user);
