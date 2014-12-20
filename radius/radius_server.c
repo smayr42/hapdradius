@@ -295,6 +295,9 @@ struct radius_server_data {
 			    int phase2, struct eap_user *user);
 
 	void (*acct_update)(void *ctx, struct radius_msg *msg);
+
+	void (*auth_reply)(void *ctx, struct radius_msg *msg);
+
 	/**
 	 * eap_req_id_text - Optional data for EAP-Request/Identity
 	 *
@@ -1115,6 +1118,9 @@ send_reply:
 			radius_msg_dump(reply);
 		}
 
+		if (data->auth_reply)
+			data->auth_reply(data->conf_ctx, reply);
+
 		switch (radius_msg_get_hdr(reply)->code) {
 		case RADIUS_CODE_ACCESS_ACCEPT:
 			srv_log(sess, "Sending Access-Accept");
@@ -1717,6 +1723,7 @@ radius_server_init(struct radius_server_conf *conf)
 	data->pac_key_refresh_time = conf->pac_key_refresh_time;
 	data->get_eap_user = conf->get_eap_user;
 	data->acct_update = conf->acct_update;
+	data->auth_reply = conf->auth_reply;
 	data->eap_sim_aka_result_ind = conf->eap_sim_aka_result_ind;
 	data->tnc = conf->tnc;
 	data->wps = conf->wps;
