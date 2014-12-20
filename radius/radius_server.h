@@ -188,7 +188,7 @@ struct radius_server_conf {
 	 * password data and RADIUS server will free it after use.
 	 */
 	int (*get_eap_user)(void *ctx, const u8 *identity, size_t identity_len,
-			    int phase2, struct eap_user *user);
+			    int phase2, struct eap_user *user, struct radius_msg *request);
 
 	void (*acct_update)(void *ctx, struct radius_msg *msg);
 

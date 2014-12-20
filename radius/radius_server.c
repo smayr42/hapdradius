@@ -292,7 +292,7 @@ struct radius_server_data {
 	 * password data and RADIUS server will free it after use.
 	 */
 	int (*get_eap_user)(void *ctx, const u8 *identity, size_t identity_len,
-			    int phase2, struct eap_user *user);
+			    int phase2, struct eap_user *user, struct radius_msg *request);
 
 	void (*acct_update)(void *ctx, struct radius_msg *msg);
 
@@ -626,7 +626,7 @@ radius_server_get_new_session(struct radius_server_data *data,
 	RADIUS_DUMP_ASCII("User-Name", user, user_len);
 
 	os_memset(&tmp, 0, sizeof(tmp));
-	res = data->get_eap_user(data->conf_ctx, user, user_len, 0, &tmp);
+	res = data->get_eap_user(data->conf_ctx, user, user_len, 0, &tmp, msg);
 	bin_clear_free(tmp.password, tmp.password_len);
 
 	if (res != 0) {
@@ -853,7 +853,7 @@ radius_server_macacl(struct radius_server_data *data,
 
 		os_memset(&tmp, 0, sizeof(tmp));
 		res = data->get_eap_user(data->conf_ctx, (u8 *) sess->username,
-					 os_strlen(sess->username), 0, &tmp);
+					 os_strlen(sess->username), 0, &tmp, request);
 		if (res || !tmp.macacl || tmp.password == NULL) {
 			RADIUS_DEBUG("No MAC ACL user entry");
 			bin_clear_free(tmp.password, tmp.password_len);
@@ -2003,7 +2003,7 @@ static int radius_server_get_eap_user(void *ctx, const u8 *identity,
 	int ret;
 
 	ret = data->get_eap_user(data->conf_ctx, identity, identity_len,
-				 phase2, user);
+				 phase2, user, sess->last_msg);
 	if (ret == 0 && user) {
 		sess->accept_attr = user->accept_attr;
 		sess->remediation = user->remediation;
