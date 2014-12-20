@@ -17,11 +17,12 @@
 #include <sqlite3.h>
 
 #define DEBUG_LEVEL MSG_INFO //MSG_MSGDUMP
-#define CA_CERT "/mnt/ca.crt"
-#define SERVER_CERT "/mnt/server.crt"
-#define SERVER_KEY "/mnt/server.key"
-#define CLIENT_FILE "/mnt/radius.conf"
-#define DB_FILE "/mnt/user.db"
+#define DEFAULT_PREFIX "."
+#define CA_CERT "/ca.crt"
+#define SERVER_CERT "/server.crt"
+#define SERVER_KEY "/server.key"
+#define CLIENT_FILE "/radius.conf"
+#define DB_FILE "/user.db"
 #define SERVER_ID "radius"
 #define AUTH_PORT 1812
 #define ACCT_PORT 1813
@@ -106,6 +107,19 @@ sqlite_logger_cb(void *pArg, int iErrCode, const char *zMsg)
 	printf("SQLITE: (%d) %s\n", iErrCode, zMsg);
 }
 
+char*
+append_prefix(const char *path) {
+	const char *prefix = getenv("PREFIX");
+
+	if (!prefix)
+		prefix = DEFAULT_PREFIX;
+
+	char* full_path = calloc(strlen(prefix) + strlen(path) + 1, sizeof(char));
+	strcat(full_path, prefix);
+	strcat(full_path, path);
+	return full_path;
+}
+
 static void*
 init_tls()
 {
@@ -119,9 +133,9 @@ init_tls()
 		return NULL;
 
 	os_memset(&tparams, 0, sizeof(tparams));
-	tparams.ca_cert = CA_CERT;
-	tparams.client_cert = SERVER_CERT;
-	tparams.private_key = SERVER_KEY;
+	tparams.ca_cert = append_prefix(CA_CERT);
+	tparams.client_cert = append_prefix(SERVER_CERT);
+	tparams.private_key = append_prefix(SERVER_KEY);
 
 	if (tls_global_set_params(tls_ctx, &tparams)) {
 		printf("Failed to set TLS parameters\n");
@@ -172,9 +186,10 @@ sqlite_init()
 	struct sqlite_ctx *ctx = calloc(1, sizeof(struct sqlite_ctx));
 	sqlite3_config(SQLITE_CONFIG_LOG, sqlite_logger_cb, NULL);
 
-	if (sqlite3_open(DB_FILE, &ctx->db) != SQLITE_OK) {
+	char* db_file = append_prefix(DB_FILE);
+	if (sqlite3_open(db_file, &ctx->db) != SQLITE_OK) {
 		sqlite_deinit(&ctx);
-		printf("Failed to open file '" DB_FILE "'\n");
+		printf("Failed to open file '%s'\n", db_file);
 		return NULL;
 	}
 
@@ -333,12 +348,15 @@ main(int argc, char *argv[])
 
 	config.auth_port = AUTH_PORT;
 	config.acct_port = ACCT_PORT;
-	config.client_file = CLIENT_FILE;
+	config.client_file = append_prefix(CLIENT_FILE);
 	config.server_id = SERVER_ID;
 	config.get_eap_user = get_eap_user;
 	config.acct_update = acct_update;
 
-	wpa_debug_level = DEBUG_LEVEL;
+	if (getenv("DEBUG") && atoi(getenv("DEBUG")))
+		wpa_debug_level = MSG_MSGDUMP;
+	else
+        wpa_debug_level = MSG_INFO;
 
 	config.conf_ctx = sqlite_init();
 	if (!config.conf_ctx) {
