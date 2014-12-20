@@ -54,6 +54,16 @@ CREATE TABLE accounting
     terminate_cause INTEGER --Acct-Terminate-Cause (int32)
 );
 
+CREATE TABLE requests
+(
+    timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    session TEXT NOT NULL, --Acct-Session-Id (string)
+    status INTEGER, --Radius Message Code
+    username TEXT, --User-Name (string)
+    ap_mac TEXT, --Called-Station-Id (string)
+    client_mac TEXT, --Calling-Station-Id (string)
+);
+
 TEST DATA
 
 INSERT INTO users
@@ -86,6 +96,7 @@ struct sqlite_ctx {
 	sqlite3 *db;
 	sqlite3_stmt *select_user;
 	sqlite3_stmt *insert_acct;
+	sqlite3_stmt *insert_auth;
 };
 
 static void
@@ -174,6 +185,7 @@ sqlite_deinit(struct sqlite_ctx **ctx)
 	struct sqlite_ctx *c = *ctx;
 	sqlite3_finalize(c->select_user);
 	sqlite3_finalize(c->insert_acct);
+	sqlite3_finalize(c->insert_auth);
 	sqlite3_close(c->db);
 	free(c);
 	*ctx = NULL;
@@ -219,6 +231,23 @@ sqlite_init()
 					":terminate_cause)",
 
 			-1, &ctx->insert_acct, NULL) != SQLITE_OK) {
+
+		sqlite_deinit(&ctx);
+		printf("Failed to prepare statement\n");
+		return NULL;
+	}
+
+	if (sqlite3_prepare_v2(ctx->db,
+
+			"INSERT INTO requests VALUES ("
+					"CURRENT_TIMESTAMP,"
+					":session,"
+					":status,"
+					":username,"
+					":ap_mac,"
+					":client_mac)",
+
+			-1, &ctx->insert_auth, NULL) != SQLITE_OK) {
 
 		sqlite_deinit(&ctx);
 		printf("Failed to prepare statement\n");
@@ -344,22 +373,30 @@ static void
 auth_reply(void *c, struct radius_msg *request, struct radius_msg *reply)
 {
 	struct sqlite_ctx *ctx = c;
-	u8 code = radius_msg_get_hdr(reply)->code;
-
-	if (code != RADIUS_CODE_ACCESS_REJECT && code != RADIUS_CODE_ACCESS_ACCEPT)
-		return;
+	sqlite3_stmt *stmt = ctx->insert_auth;
 
 	if (!request || !reply) {
 		printf("Invalid request-reply pair (%p, %p)\n", request, reply);
 		return;
 	}
 
-	printf("===== REQUEST =====\n");
-	radius_msg_dump(request);
-	printf("===== REPLY =====\n");
-	radius_msg_dump(reply);
+	u8 code = radius_msg_get_hdr(reply)->code;
+	if (code != RADIUS_CODE_ACCESS_REJECT && code != RADIUS_CODE_ACCESS_ACCEPT)
+		/* only log access accept/reject replies */
+		return;
 
-	UNUSED(ctx);
+	sqlite3_reset(stmt);
+	bind_radius_string_attr(stmt, ":session", request, RADIUS_ATTR_ACCT_SESSION_ID);
+	sqlite3_bind_int(stmt, sqlite3_bind_parameter_index(stmt, ":status"), code);
+	bind_radius_string_attr(stmt, ":username", request, RADIUS_ATTR_USER_NAME);
+	bind_radius_string_attr(stmt, ":ap_mac", request, RADIUS_ATTR_CALLED_STATION_ID);
+	bind_radius_string_attr(stmt, ":client_mac", request, RADIUS_ATTR_CALLING_STATION_ID);
+
+	if (sqlite3_step(stmt) != SQLITE_DONE)
+		printf("inserting accounting data failed!\n");
+
+	sqlite3_reset(stmt);
+	sqlite3_clear_bindings(stmt);
 }
 
 int
