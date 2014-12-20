@@ -230,8 +230,7 @@ sqlite_init()
 }
 
 static int
-get_eap_user(void *c, const u8 *identity, size_t identity_len, int phase2,
-		struct eap_user *user, struct radius_msg *request)
+get_eap_user(void *c, const u8 *identity, size_t identity_len, int phase2, struct eap_user *user)
 {
 	if (user == NULL)
 		return 0;
@@ -246,7 +245,7 @@ get_eap_user(void *c, const u8 *identity, size_t identity_len, int phase2,
 	}
 
 	if (identity == NULL || identity_len <= 0) {
-		printf("request for user without identity for phase 2");
+		printf("request for user without identity for phase2");
 		return -1;
 	}
 
