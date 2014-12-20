@@ -15,6 +15,7 @@
 #include "radius/radius.h"
 #include "ap/ap_config.h"
 #include <sqlite3.h>
+#include <syslog.h>
 
 #define DEFAULT_PREFIX "."
 #define CA_CERT "/ca.crt"
@@ -105,16 +106,15 @@ hostapd_logger_cb(void *ctx, const u8 *addr, unsigned int module, int level, con
 	UNUSED(ctx);
 	UNUSED(addr);
 	UNUSED(module);
-	UNUSED(level);
 	UNUSED(len);
-	printf("RADIUS: %s\n", txt);
+	wpa_printf(level, "radius: %s", txt);
 }
 
 static void
 sqlite_logger_cb(void *pArg, int iErrCode, const char *zMsg)
 {
 	UNUSED(pArg);
-	printf("SQLITE: (%d) %s\n", iErrCode, zMsg);
+	wpa_printf(MSG_ERROR, "sqlite(%d): %s", iErrCode, zMsg);
 }
 
 char*
@@ -148,12 +148,12 @@ init_tls()
 	tparams.private_key = append_prefix(SERVER_KEY);
 
 	if (tls_global_set_params(tls_ctx, &tparams)) {
-		printf("Failed to set TLS parameters\n");
+		wpa_printf(MSG_ERROR, "Failed to set TLS parameters");
 		return NULL;
 	}
 
 	if (tls_global_set_verify(tls_ctx, 0)) {
-		printf("Failed to verify tls context\n");
+		wpa_printf(MSG_ERROR, "Failed to verify tls context");
 		return NULL;
 	}
 
@@ -200,7 +200,7 @@ sqlite_init()
 	char* db_file = append_prefix(DB_FILE);
 	if (sqlite3_open(db_file, &ctx->db) != SQLITE_OK) {
 		sqlite_deinit(&ctx);
-		printf("Failed to open file '%s'\n", db_file);
+		wpa_printf(MSG_ERROR, "Failed to open file '%s'", db_file);
 		return NULL;
 	}
 
@@ -212,7 +212,7 @@ sqlite_init()
 			-1, &ctx->select_user, NULL) != SQLITE_OK) {
 
 		sqlite_deinit(&ctx);
-		printf("Failed to prepare statement\n");
+		wpa_printf(MSG_ERROR, "Failed to prepare statement");
 		return NULL;
 	}
 
@@ -233,7 +233,7 @@ sqlite_init()
 			-1, &ctx->insert_acct, NULL) != SQLITE_OK) {
 
 		sqlite_deinit(&ctx);
-		printf("Failed to prepare statement\n");
+		wpa_printf(MSG_ERROR, "Failed to prepare statement");
 		return NULL;
 	}
 
@@ -250,7 +250,7 @@ sqlite_init()
 			-1, &ctx->insert_auth, NULL) != SQLITE_OK) {
 
 		sqlite_deinit(&ctx);
-		printf("Failed to prepare statement\n");
+		wpa_printf(MSG_ERROR, "Failed to prepare statement");
 		return NULL;
 	}
 
@@ -273,7 +273,7 @@ get_eap_user(void *c, const u8 *identity, size_t identity_len, int phase2, struc
 	}
 
 	if (identity == NULL || identity_len <= 0) {
-		printf("request for user without identity for phase2");
+		wpa_printf(MSG_WARNING, "request for user without identity for phase2");
 		return -1;
 	}
 
@@ -308,7 +308,7 @@ bind_radius_int32_attr(sqlite3_stmt *stmt, const char *name, struct radius_msg *
 {
 	int index = sqlite3_bind_parameter_index(stmt, name);
 	if (index == 0) {
-		printf("statement has no parameter '%s'\n", name);
+		wpa_printf(MSG_ERROR, "statement has no parameter '%s'", name);
 		return;
 	}
 
@@ -324,7 +324,7 @@ bind_radius_string_attr(sqlite3_stmt *stmt, const char *name, struct radius_msg 
 {
 	int index = sqlite3_bind_parameter_index(stmt, name);
 	if (index == 0) {
-		printf("statement has no parameter '%s'\n", name);
+		wpa_printf(MSG_ERROR, "statement has no parameter '%s'", name);
 		return;
 	}
 
@@ -363,7 +363,7 @@ acct_update(void *c, struct radius_msg *msg)
 	bind_radius_int32_attr(stmt, ":terminate_cause", msg, RADIUS_ATTR_ACCT_TERMINATE_CAUSE);
 
 	if (sqlite3_step(stmt) != SQLITE_DONE)
-		printf("inserting accounting data failed!\n");
+		wpa_printf(MSG_ERROR, "inserting accounting data failed!");
 
 	sqlite3_reset(stmt);
 	sqlite3_clear_bindings(stmt);
@@ -376,7 +376,7 @@ auth_reply(void *c, struct radius_msg *request, struct radius_msg *reply)
 	sqlite3_stmt *stmt = ctx->insert_auth;
 
 	if (!request || !reply) {
-		printf("Invalid request-reply pair (%p, %p)\n", request, reply);
+		wpa_printf(MSG_ERROR, "invalid request-reply pair (%p, %p)", request, reply);
 		return;
 	}
 
@@ -393,7 +393,7 @@ auth_reply(void *c, struct radius_msg *request, struct radius_msg *reply)
 	bind_radius_string_attr(stmt, ":client_mac", request, RADIUS_ATTR_CALLING_STATION_ID);
 
 	if (sqlite3_step(stmt) != SQLITE_DONE)
-		printf("inserting accounting data failed!\n");
+		wpa_printf(MSG_ERROR, "inserting accounting data failed!");
 
 	sqlite3_reset(stmt);
 	sqlite3_clear_bindings(stmt);
@@ -412,6 +412,9 @@ main(int argc, char *argv[])
 	config.acct_update = acct_update;
 	config.auth_reply = auth_reply;
 
+	if (getenv("SYSLOG") && atoi(getenv("SYSLOG")))
+		wpa_debug_open_syslog();
+
 	if (getenv("DEBUG") && atoi(getenv("DEBUG")))
 		wpa_debug_level = MSG_MSGDUMP;
 	else
@@ -419,7 +422,7 @@ main(int argc, char *argv[])
 
 	config.conf_ctx = sqlite_init();
 	if (!config.conf_ctx) {
-		printf("Failed to initialize sqlite\n");
+		wpa_printf(MSG_ERROR, "Failed to initialize sqlite");
 		return -1;
 	}
 
@@ -429,7 +432,7 @@ main(int argc, char *argv[])
 	hostapd_logger_register_cb(hostapd_logger_cb);
 
 	if (eloop_init()) {
-		printf("Failed to initialize event loop\n");
+		wpa_printf(MSG_ERROR, "Failed to initialize event loop");
 		return -1;
 	}
 
@@ -437,7 +440,7 @@ main(int argc, char *argv[])
 	config.ssl_ctx = init_tls();
 
 	if(!config.ssl_ctx) {
-		printf("Failed to initialize ssl context\n");
+		wpa_printf(MSG_ERROR, "Failed to initialize ssl context");
 		return -1;
 	}
 

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.4)
 project(HAPDRadius)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -Wall")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -std=gnu11 -Wall")
 
 set(SOURCE_FILES
   utils/eloop.c
@@ -30,7 +30,7 @@ set(SOURCE_FILES
   radius.c
 )
 
-add_definitions(-DEAP_SERVER_PEAP -DEAP_SERVER_MSCHAPV2 -DEAP_SERVER_IDENTITY -DEAP_SERVER -DEAP_TLS_FUNCS -DRADIUS_SERVER)
+add_definitions(-DEAP_SERVER -DRADIUS_SERVER -DCONFIG_DEBUG_SYSLOG)
 
 include_directories(. utils)
 add_executable(HAPDRadius ${SOURCE_FILES})

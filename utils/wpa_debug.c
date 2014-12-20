@@ -89,7 +89,7 @@ void wpa_debug_print_timestamp(void)
 
 void wpa_debug_open_syslog(void)
 {
-	openlog("wpa_supplicant", LOG_PID | LOG_NDELAY, LOG_HOSTAPD);
+	openlog(NULL, LOG_PID | LOG_NDELAY, LOG_HOSTAPD);
 	wpa_debug_syslog++;
 }
 
