@@ -192,7 +192,7 @@ struct radius_server_conf {
 
 	void (*acct_update)(void *ctx, struct radius_msg *msg);
 
-	void (*auth_reply)(void *ctx, struct radius_msg *msg);
+	void (*auth_reply)(void *ctx, struct radius_msg *request, struct radius_msg *reply);
 
 	/**
 	 * eap_req_id_text - Optional data for EAP-Request/Identity

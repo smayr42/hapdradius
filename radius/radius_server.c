@@ -296,7 +296,7 @@ struct radius_server_data {
 
 	void (*acct_update)(void *ctx, struct radius_msg *msg);
 
-	void (*auth_reply)(void *ctx, struct radius_msg *msg);
+	void (*auth_reply)(void *ctx, struct radius_msg *request, struct radius_msg *reply);
 
 	/**
 	 * eap_req_id_text - Optional data for EAP-Request/Identity
@@ -1119,7 +1119,7 @@ send_reply:
 		}
 
 		if (data->auth_reply)
-			data->auth_reply(data->conf_ctx, reply);
+			data->auth_reply(data->conf_ctx, msg, reply);
 
 		switch (radius_msg_get_hdr(reply)->code) {
 		case RADIUS_CODE_ACCESS_ACCEPT:

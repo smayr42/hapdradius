@@ -341,6 +341,28 @@ acct_update(void *c, struct radius_msg *msg)
 	sqlite3_clear_bindings(stmt);
 }
 
+static void
+auth_reply(void *c, struct radius_msg *request, struct radius_msg *reply)
+{
+	struct sqlite_ctx *ctx = c;
+	u8 code = radius_msg_get_hdr(reply)->code;
+
+	if (code != RADIUS_CODE_ACCESS_REJECT && code != RADIUS_CODE_ACCESS_ACCEPT)
+		return;
+
+	if (!request || !reply) {
+		printf("Invalid request-reply pair (%p, %p)\n", request, reply);
+		return;
+	}
+
+	printf("===== REQUEST =====\n");
+	radius_msg_dump(request);
+	printf("===== REPLY =====\n");
+	radius_msg_dump(reply);
+
+	UNUSED(ctx);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -352,6 +374,7 @@ main(int argc, char *argv[])
 	config.server_id = SERVER_ID;
 	config.get_eap_user = get_eap_user;
 	config.acct_update = acct_update;
+	config.auth_reply = auth_reply;
 
 	if (getenv("DEBUG") && atoi(getenv("DEBUG")))
 		wpa_debug_level = MSG_MSGDUMP;
