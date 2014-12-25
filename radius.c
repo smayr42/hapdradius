@@ -76,14 +76,18 @@ VALUES
 
  */
 
-#define SWAP_UINT32(x) (((x) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | ((x) << 24))
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    #define HTON32(x) (x)
+#else
+    #define HTON32(x) (((x) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | ((x) << 24))
+#endif
 
-static u32 interim_update_interval = SWAP_UINT32(ACCT_UPDATE_INTERVAL);
+static u32 interim_update_buf = HTON32(ACCT_UPDATE_INTERVAL);
 
 static struct wpabuf interim_update_value = {
 		.size = 4,
 		.used = 4,
-		.buf = (u8*)&interim_update_interval,
+		.buf = (u8*)&interim_update_buf,
 		.flags = WPABUF_FLAG_EXT_DATA
 };
 
