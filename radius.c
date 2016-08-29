@@ -1,21 +1,6 @@
-/*
- * Example application using RADIUS client as a library
- * Copyright (c) 2007, Jouni Malinen <j@w1.fi>
- *
- * This software may be distributed under the terms of the BSD license.
- * See README for more details.
- */
-
-#include "includes.h"
-#include "common.h"
-#include "eloop.h"
-#include "crypto/tls.h"
-#include "eap_server/eap.h"
-#include "radius/radius_server.h"
-#include "radius/radius.h"
-#include "ap/ap_config.h"
 #include <sqlite3.h>
 #include <syslog.h>
+#include "hostapd.h"
 
 #define DEFAULT_PREFIX "."
 #define CA_CERT "/ca.crt"
@@ -79,7 +64,11 @@ VALUES
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
     #define HTON32(x) (x)
 #else
-    #define HTON32(x) (((x) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | ((x) << 24))
+    #define HTON32(val) \
+        ((uint32_t)((((uint32_t)(val) & (uint32_t)0x000000ffU) << 24) | \
+                  (((uint32_t)(val) & (uint32_t)0x0000ff00U) <<  8) | \
+                  (((uint32_t)(val) & (uint32_t)0x00ff0000U) >>  8) | \
+                  (((uint32_t)(val) & (uint32_t)0xff000000U) >> 24)))
 #endif
 
 static u32 interim_update_buf = HTON32(ACCT_UPDATE_INTERVAL);

@@ -1,3 +1,9 @@
-.idea
 *.swp
+*.db
+*.cmake
 build
+third_party
+hapdradius
+CMakeFiles
+CMakeCache.txt
+Makefile

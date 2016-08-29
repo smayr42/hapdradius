@@ -1,0 +1,72 @@
+From 4a9171cbc444fc0a10209120df596fb2e72e69b3 Mon Sep 17 00:00:00 2001
+From: sam <me@sam.st>
+Date: Sun, 28 Aug 2016 22:11:53 +0200
+Subject: [PATCH 1/1] Add callbacks for accounting and authentication.
+
+---
+ src/radius/radius_server.c | 12 +++++++++++-
+ src/radius/radius_server.h |  4 ++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/radius/radius_server.c b/src/radius/radius_server.c
+index 744283c..3000017 100644
+--- a/src/radius/radius_server.c
++++ b/src/radius/radius_server.c
+@@ -310,6 +310,10 @@ struct radius_server_data {
+ 	int (*get_eap_user)(void *ctx, const u8 *identity, size_t identity_len,
+ 			    int phase2, struct eap_user *user);
+ 
++	void (*acct_update)(void *ctx, struct radius_msg *msg);
++
++	void (*auth_reply)(void *ctx, struct radius_msg *request, struct radius_msg *reply);
++
+ 	/**
+ 	 * eap_req_id_text - Optional data for EAP-Request/Identity
+ 	 *
+@@ -1132,6 +1136,9 @@ send_reply:
+ 			radius_msg_dump(reply);
+ 		}
+ 
++		if (data->auth_reply)
++			data->auth_reply(data->conf_ctx, msg, reply);
++
+ 		switch (radius_msg_get_hdr(reply)->code) {
+ 		case RADIUS_CODE_ACCESS_ACCEPT:
+ 			srv_log(sess, "Sending Access-Accept");
+@@ -1392,7 +1399,8 @@ static void radius_server_receive_acct(int sock, void *eloop_ctx,
+ 		goto fail;
+ 	}
+ 
+-	/* TODO: Write accounting information to a file or database */
++	if (data->acct_update)
++		data->acct_update(data->conf_ctx, msg);
+ 
+ 	hdr = radius_msg_get_hdr(msg);
+ 
+@@ -1733,6 +1741,8 @@ radius_server_init(struct radius_server_conf *conf)
+ 	data->pac_key_lifetime = conf->pac_key_lifetime;
+ 	data->pac_key_refresh_time = conf->pac_key_refresh_time;
+ 	data->get_eap_user = conf->get_eap_user;
++	data->acct_update = conf->acct_update;
++	data->auth_reply = conf->auth_reply;
+ 	data->eap_sim_aka_result_ind = conf->eap_sim_aka_result_ind;
+ 	data->tnc = conf->tnc;
+ 	data->wps = conf->wps;
+diff --git a/src/radius/radius_server.h b/src/radius/radius_server.h
+index 7a25802..ea51db4 100644
+--- a/src/radius/radius_server.h
++++ b/src/radius/radius_server.h
+@@ -203,6 +203,10 @@ struct radius_server_conf {
+ 	int (*get_eap_user)(void *ctx, const u8 *identity, size_t identity_len,
+ 			    int phase2, struct eap_user *user);
+ 
++	void (*acct_update)(void *ctx, struct radius_msg *msg);
++
++	void (*auth_reply)(void *ctx, struct radius_msg *request, struct radius_msg *reply);
++
+ 	/**
+ 	 * eap_req_id_text - Optional data for EAP-Request/Identity
+ 	 *
+-- 
+2.9.3
+
