@@ -30,11 +30,11 @@ set(HOSTAPD_SOURCE_FILES
     ${HOSTAPD_DIR}/src/crypto/random.c
     ${HOSTAPD_DIR}/src/radius/radius.c
     ${HOSTAPD_DIR}/src/radius/radius_server.c
+    ${HOSTAPD_DIR}/hostapd/eap_register.c
     )
 
 set(HOSTAPD_RELEASE 2.5)
-ExternalProject_Add(
-    hostapd
+ExternalProject_Add(hostapd
     URL https://w1.fi/releases/hostapd-${HOSTAPD_RELEASE}.tar.gz
     PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
     PATCH_COMMAND patch -p1 -d ${HOSTAPD_DIR} < "${CMAKE_CURRENT_SOURCE_DIR}/0001-Add-callbacks-for-accounting-and-authentication.patch"
@@ -52,9 +52,18 @@ find_library(SQLITE3_LIB NAMES sqlite3)
 find_library(SSL_LIB NAMES ssl)
 find_library(CRYPTO_LIB NAMES crypto)
 
-include_directories(. ${HOSTAPD_DIR}/src ${HOSTAPD_DIR}/src/utils)
+include_directories(. ${HOSTAPD_DIR} ${HOSTAPD_DIR}/src ${HOSTAPD_DIR}/src/utils)
 
-add_definitions(-DEAP_SERVER -DRADIUS_SERVER -DCONFIG_DEBUG_SYSLOG -DCONFIG_SHA256)
+add_definitions(
+    -DEAP_SERVER
+    -DEAP_SERVER_IDENTITY
+    -DEAP_SERVER_MSCHAPV2
+    -DEAP_SERVER_PEAP
+    -DRADIUS_SERVER
+    -DCONFIG_DEBUG_SYSLOG
+    -DCONFIG_SHA256
+    )
+
 add_executable(hapdradius ${SOURCE_FILES})
 add_dependencies(hapdradius hostapd)
 

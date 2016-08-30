@@ -2,12 +2,12 @@
 #include <syslog.h>
 #include "hostapd.h"
 
-#define DEFAULT_PREFIX "."
-#define CA_CERT "/ca.crt"
-#define SERVER_CERT "/server.crt"
-#define SERVER_KEY "/server.key"
-#define CLIENT_FILE "/radius.conf"
-#define DB_FILE "/user.db"
+#define DEFAULT_PREFIX "./"
+#define CA_CERT "ca.crt"
+#define SERVER_CERT "server.crt"
+#define SERVER_KEY "server.key"
+#define CLIENT_FILE "radius.conf"
+#define DB_FILE "user.db"
 #define SERVER_ID "radius"
 #define AUTH_PORT 1812
 #define ACCT_PORT 1813
@@ -99,22 +99,6 @@ init_tls()
     }
 
     return tls_ctx;
-}
-
-static int
-register_methods(void)
-{
-    int ret = 0;
-
-    ret = eap_server_identity_register();
-
-    if (ret == 0)
-        ret = eap_server_mschapv2_register();
-
-    if (ret == 0)
-        ret = eap_server_peap_register();
-
-    return ret;
 }
 
 static void
@@ -343,6 +327,13 @@ auth_reply(void *c, struct radius_msg *request, struct radius_msg *reply)
     sqlite3_clear_bindings(stmt);
 }
 
+static void
+on_termination(int sig, void *signal_ctx)
+{
+    wpa_printf(MSG_DEBUG, "Terminating due to signal %d", sig);
+    eloop_terminate();
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -364,12 +355,6 @@ main(int argc, char *argv[])
     else
         wpa_debug_level = MSG_INFO;
 
-    config.conf_ctx = sqlite_init();
-    if (!config.conf_ctx) {
-        wpa_printf(MSG_ERROR, "Failed to initialize sqlite");
-        return -1;
-    }
-
     if (os_program_init())
         return -1;
 
@@ -380,11 +365,22 @@ main(int argc, char *argv[])
         return -1;
     }
 
-    register_methods();
-    config.ssl_ctx = init_tls();
+    eloop_register_signal_terminate(on_termination, NULL);
 
+    config.conf_ctx = sqlite_init();
+    if (!config.conf_ctx) {
+        wpa_printf(MSG_ERROR, "Failed to initialize sqlite");
+        return -1;
+    }
+
+    config.ssl_ctx = init_tls();
     if (!config.ssl_ctx) {
         wpa_printf(MSG_ERROR, "Failed to initialize ssl context");
+        return -1;
+    }
+
+    if (eap_server_register_methods()) {
+        wpa_printf(MSG_ERROR, "Failed to register EAP methods");
         return -1;
     }
 
@@ -397,6 +393,7 @@ main(int argc, char *argv[])
     sqlite_deinit((struct sqlite_ctx **)&config.conf_ctx);
 
     eloop_destroy();
+    eap_server_unregister_methods();
     os_program_deinit();
 
     return 0;

@@ -2,6 +2,7 @@
 *.db
 *.cmake
 build
+test
 third_party
 hapdradius
 CMakeFiles
