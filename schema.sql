@@ -22,7 +22,7 @@ STRINGIFY(
 
     CREATE TABLE IF NOT EXISTS requests (
         timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        session TEXT NOT NULL, /* Acct-Session-Id (string) */
+        session TEXT,          /* Acct-Session-Id (string) */
         status INTEGER,        /* Radius Message Code */
         username TEXT,         /* User-Name (string) */
         ap_mac TEXT,           /* Called-Station-Id (string) */
