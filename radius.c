@@ -2,17 +2,6 @@
 #include <syslog.h>
 #include "hostapd.h"
 
-#define DEFAULT_PREFIX "./"
-#define CA_CERT "ca.crt"
-#define SERVER_CERT "server.crt"
-#define SERVER_KEY "server.key"
-#define CLIENT_FILE "radius.conf"
-#define DB_FILE "user.db"
-#define SERVER_ID "radius"
-#define AUTH_PORT 1812
-#define ACCT_PORT 1813
-#define ACCT_UPDATE_INTERVAL 300
-
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define HTON32(x) (x)
 #else
@@ -24,10 +13,11 @@
 #endif
 
 #define STRINGIFY(x) #x
-
 const char *create_tables_sql =
 #include "schema.sql"
     ;
+
+#define ACCT_UPDATE_INTERVAL 300
 
 static uint32_t interim_update_buf = HTON32(ACCT_UPDATE_INTERVAL);
 
@@ -46,6 +36,14 @@ struct sqlite_ctx {
     sqlite3_stmt *insert_auth;
 };
 
+struct config {
+    char *ca_cert_file;
+    char *server_cert_file;
+    char *private_key_file;
+    char *db_file;
+    struct radius_server_conf radius;
+};
+
 static void
 hostapd_logger_cb(void *ctx, const uint8_t *addr, unsigned int module, int level, const char *txt,
                   size_t len)
@@ -59,22 +57,24 @@ sqlite_logger_cb(void *pArg, int iErrCode, const char *zMsg)
     wpa_printf(MSG_ERROR, "sqlite(%d): %s\n", iErrCode, zMsg);
 }
 
-char *
+static char *
 append_prefix(const char *path)
 {
     const char *prefix = getenv("PREFIX");
 
     if (!prefix)
-        prefix = DEFAULT_PREFIX;
+        prefix = ".";
 
-    char *full_path = calloc(strlen(prefix) + strlen(path) + 1, sizeof(char));
-    strcat(full_path, prefix);
-    strcat(full_path, path);
+    size_t full_path_length = strlen(prefix) + strlen(path) + 2;
+    char *full_path = calloc(full_path_length, sizeof(char));
+
+    snprintf(full_path, full_path_length, "%s/%s", prefix, path);
+
     return full_path;
 }
 
 static void *
-init_tls()
+tls_global_init(struct config *cfg)
 {
     struct tls_config tconf = { 0 };
     struct tls_connection_params tparams = { 0 };
@@ -84,9 +84,9 @@ init_tls()
     if (tls_ctx == NULL)
         return NULL;
 
-    tparams.ca_cert = append_prefix(CA_CERT);
-    tparams.client_cert = append_prefix(SERVER_CERT);
-    tparams.private_key = append_prefix(SERVER_KEY);
+    tparams.ca_cert = cfg->ca_cert_file;
+    tparams.client_cert = cfg->server_cert_file;
+    tparams.private_key = cfg->private_key_file;
 
     if (tls_global_set_params(tls_ctx, &tparams)) {
         wpa_printf(MSG_ERROR, "Failed to set TLS parameters");
@@ -113,16 +113,17 @@ sqlite_deinit(struct sqlite_ctx **ctx)
     sqlite3_finalize(c->insert_auth);
     sqlite3_close(c->db);
     free(c);
+
     *ctx = NULL;
 }
 
-struct sqlite_ctx *
-sqlite_init()
+static struct sqlite_ctx *
+sqlite_init(struct config *cfg)
 {
     struct sqlite_ctx *ctx = calloc(1, sizeof(struct sqlite_ctx));
     sqlite3_config(SQLITE_CONFIG_LOG, sqlite_logger_cb, NULL);
 
-    char *db_file = append_prefix(DB_FILE);
+    char *db_file = cfg->db_file;
     if (sqlite3_open(db_file, &ctx->db) != SQLITE_OK) {
         sqlite_deinit(&ctx);
         wpa_printf(MSG_ERROR, "Failed to open file '%s'", db_file);
@@ -328,6 +329,47 @@ auth_reply(void *c, struct radius_msg *request, struct radius_msg *reply)
 }
 
 static void
+config_deinit(struct config **cfg)
+{
+    if (!cfg || !*cfg)
+        return;
+
+    struct config *c = *cfg;
+    free(c->ca_cert_file);
+    free(c->server_cert_file);
+    free(c->private_key_file);
+    free(c->db_file);
+    free(c->radius.client_file);
+    free(c);
+
+    *cfg = NULL;
+}
+
+static struct config *
+config_init()
+{
+    struct config *cfg = calloc(1, sizeof(struct config));
+
+    /* TODO: read from cmdline or config file */
+
+    cfg->ca_cert_file = append_prefix("ca.crt");
+    cfg->server_cert_file = append_prefix("server.crt");
+    cfg->private_key_file = append_prefix("server.key");
+    cfg->db_file = append_prefix("user.db");
+    cfg->radius.client_file = append_prefix("radius.conf");
+
+    cfg->radius.server_id = "radius";
+    cfg->radius.auth_port = 1812;
+    cfg->radius.acct_port = 1813;
+
+    cfg->radius.get_eap_user = get_eap_user;
+    cfg->radius.acct_update = acct_update;
+    cfg->radius.auth_reply = auth_reply;
+
+    return cfg;
+}
+
+static void
 on_termination(int sig, void *signal_ctx)
 {
     wpa_printf(MSG_DEBUG, "Terminating due to signal %d", sig);
@@ -337,15 +379,7 @@ on_termination(int sig, void *signal_ctx)
 int
 main(int argc, char *argv[])
 {
-    struct radius_server_conf config = { 0 };
-
-    config.auth_port = AUTH_PORT;
-    config.acct_port = ACCT_PORT;
-    config.client_file = append_prefix(CLIENT_FILE);
-    config.server_id = SERVER_ID;
-    config.get_eap_user = get_eap_user;
-    config.acct_update = acct_update;
-    config.auth_reply = auth_reply;
+    struct config *cfg = config_init();
 
     if (getenv("SYSLOG") && atoi(getenv("SYSLOG")))
         wpa_debug_open_syslog();
@@ -367,14 +401,14 @@ main(int argc, char *argv[])
 
     eloop_register_signal_terminate(on_termination, NULL);
 
-    config.conf_ctx = sqlite_init();
-    if (!config.conf_ctx) {
+    cfg->radius.conf_ctx = sqlite_init(cfg);
+    if (!cfg->radius.conf_ctx) {
         wpa_printf(MSG_ERROR, "Failed to initialize sqlite");
         return -1;
     }
 
-    config.ssl_ctx = init_tls();
-    if (!config.ssl_ctx) {
+    cfg->radius.ssl_ctx = tls_global_init(cfg);
+    if (!cfg->radius.ssl_ctx) {
         wpa_printf(MSG_ERROR, "Failed to initialize ssl context");
         return -1;
     }
@@ -384,13 +418,14 @@ main(int argc, char *argv[])
         return -1;
     }
 
-    struct radius_server_data *srv = radius_server_init(&config);
+    struct radius_server_data *srv = radius_server_init(&cfg->radius);
 
     eloop_run();
 
     radius_server_deinit(srv);
-    tls_deinit(config.ssl_ctx);
-    sqlite_deinit((struct sqlite_ctx **)&config.conf_ctx);
+    tls_deinit(cfg->radius.ssl_ctx);
+    sqlite_deinit((struct sqlite_ctx **)&cfg->radius.conf_ctx);
+    config_deinit(&cfg);
 
     eloop_destroy();
     eap_server_unregister_methods();
