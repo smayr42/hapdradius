@@ -58,7 +58,7 @@ sqlite_logger_cb(void *pArg, int iErrCode, const char *zMsg)
 }
 
 static char *
-append_prefix(const char *path)
+prepend_prefix(const char *path)
 {
     const char *prefix = getenv("PREFIX");
 
@@ -352,11 +352,11 @@ config_init()
 
     /* TODO: read from cmdline or config file */
 
-    cfg->ca_cert_file = append_prefix("ca.crt");
-    cfg->server_cert_file = append_prefix("server.crt");
-    cfg->private_key_file = append_prefix("server.key");
-    cfg->db_file = append_prefix("user.db");
-    cfg->radius.client_file = append_prefix("radius.conf");
+    cfg->ca_cert_file = prepend_prefix("ca.crt");
+    cfg->server_cert_file = prepend_prefix("server.crt");
+    cfg->private_key_file = prepend_prefix("server.key");
+    cfg->db_file = prepend_prefix("user.db");
+    cfg->radius.client_file = prepend_prefix("radius.conf");
 
     cfg->radius.server_id = "radius";
     cfg->radius.auth_port = 1812;
