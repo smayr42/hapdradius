@@ -12,10 +12,12 @@
                 (((uint32_t)(val) & (uint32_t)0xff000000U) >> 24)))
 #endif
 
+/* clang-format off */
 #define STRINGIFY(x) #x
 const char *create_tables_sql =
-#include "schema.sql"
+    #include "schema.sql"
     ;
+/* clang-format on */
 
 #define ACCT_UPDATE_INTERVAL 300
 
@@ -81,7 +83,7 @@ tls_global_init(struct config *cfg)
     void *tls_ctx;
 
     tls_ctx = tls_init(&tconf);
-    if (tls_ctx == NULL)
+    if (!tls_ctx)
         return NULL;
 
     tparams.ca_cert = cfg->ca_cert_file;
@@ -188,7 +190,7 @@ static int
 get_eap_user(void *c, const uint8_t *identity, size_t identity_len, int phase2,
              struct eap_user *user)
 {
-    if (user == NULL)
+    if (!user)
         return 0;
 
     memset(user, 0, sizeof(*user));
@@ -200,7 +202,7 @@ get_eap_user(void *c, const uint8_t *identity, size_t identity_len, int phase2,
         return 0;
     }
 
-    if (identity == NULL || identity_len <= 0 || identity_len > 1000) {
+    if (!identity || identity_len <= 0 || identity_len > 1000) {
         wpa_printf(MSG_WARNING, "request for user with invalid identity for phase2");
         return -1;
     }

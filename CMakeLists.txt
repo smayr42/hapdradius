@@ -36,6 +36,7 @@ set(HOSTAPD_SOURCE_FILES
 set(HOSTAPD_RELEASE 2.5)
 ExternalProject_Add(hostapd
     URL https://w1.fi/releases/hostapd-${HOSTAPD_RELEASE}.tar.gz
+    URL_MD5 69f9cec3f76d74f402864a43e4f8624f
     PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
     PATCH_COMMAND patch -p1 -d ${HOSTAPD_DIR} < "${CMAKE_CURRENT_SOURCE_DIR}/0001-Add-callbacks-for-accounting-and-authentication.patch"
     CONFIGURE_COMMAND ""
